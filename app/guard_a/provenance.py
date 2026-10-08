@@ -1,5 +1,6 @@
 import time
 from app.models import RequestContext, StageResult
+from app.sessions import get_session
 
 
 def run(ctx: RequestContext) -> StageResult:
@@ -16,6 +17,10 @@ def run(ctx: RequestContext) -> StageResult:
                 has_untrusted = True
 
             sources_summary.append(f"{seg.source}={seg.trust}")
+
+        if has_untrusted:
+            session = get_session(ctx.session_id)
+            session.taint = True
 
         ms = (time.perf_counter() - start_t) * 1000.0
         reason_str = (
