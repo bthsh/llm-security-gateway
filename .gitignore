@@ -5,3 +5,5 @@ logs/
 data/runtime/
 *.db
 graphify-out/
+*.mp4
+*.webp

@@ -42,6 +42,73 @@ def run(ctx: RequestContext) -> StageResult:
 
             # 2. Classifier score
             cls_score = classifier_scores[i]
+
+            # Narrowed heuristic for trusted user prompts with Hard Veto List & 0.45 Cap
+            seg_map_tmp = {s.id: s for s in ctx.segments}
+            chunk_seg = seg_map_tmp.get(chunk.segment_id)
+            if chunk_seg and chunk_seg.trust == "trusted" and rule_score == 0.0:
+                import re
+                from app.sessions import get_session
+
+                veto_patterns = [
+                    r"(?i)\b(your|the|all|any|previous|prior|above)\s+(instructions|system prompt|rules|guidelines)\b",
+                    r"(?i)\b(system prompt|canary|api key|credentials)\b",
+                    r"(?i)\b(repeat|reveal|print|show|display)\b.{0,30}\b(instructions|prompt|above|system)\b",
+                    r"(?i)\b(override|bypass|disregard|ignore)\b.{0,30}\b(system|instruction|rule|guideline|restriction)\b",
+                    r"(?i)\b(then do it|now do it|execute that|follow that)\b",
+                ]
+
+                narrow_safe_patterns = [
+                    r"(?i)\bignore (my |the )?(last |previous |prior )?(order|email|message|item|request|invoice)\b",
+                    r"(?i)\bdisregard (the |my )?(last |previous |prior )?(invoice|receipt|order|payment|email|message)\b",
+                ]
+
+                # Check unallowed email domains
+                allowed_email_domains = (
+                    profile_data.get("tools", {})
+                    .get("send_email", {})
+                    .get("allowed_email_domains", ["examplefoods.example"])
+                )
+                email_matches = re.findall(
+                    r"[a-zA-Z0-9._%+-]+@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})",
+                    chunk.text,
+                )
+                has_unallowed_email = any(
+                    dom.lower() not in [d.lower() for d in allowed_email_domains]
+                    for dom in email_matches
+                )
+
+                has_veto = (
+                    any(re.search(vp, chunk.text) for vp in veto_patterns)
+                    or has_unallowed_email
+                )
+                is_short = len(chunk.text.strip()) < 200
+                matches_safe = any(
+                    re.search(sp, chunk.text) for sp in narrow_safe_patterns
+                )
+
+                # Check if multi-sentence chunk has any sentence scoring >= 0.50
+                second_sentence_high = False
+                sentences = [
+                    s.strip()
+                    for s in re.split(r"(?<=[.!?])\s+", chunk.text.strip())
+                    if s.strip()
+                ]
+                if len(sentences) > 1:
+                    sent_scores = classifier.predict_batch(sentences)
+                    if any(s_sc >= 0.50 for s_sc in sent_scores):
+                        second_sentence_high = True
+
+                if (
+                    not has_veto
+                    and is_short
+                    and matches_safe
+                    and not second_sentence_high
+                ):
+                    cls_score = min(cls_score, 0.45)
+                    session = get_session(ctx.session_id)
+                    session.taint = True
+
             if cls_score >= 0.50:
                 findings.append(
                     Finding(

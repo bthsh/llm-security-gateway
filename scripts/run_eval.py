@@ -13,7 +13,8 @@ sys.path.insert(0, str(BASE_DIR))
 from app.audit.log import get_db_connection, init_db
 from app.config import settings
 from app.models import RequestContext, Segment
-from app.pipeline import run_pipeline
+from app.assistant import loop as assistant_loop
+from app.pipeline import run_pipeline, run_guard_a, run_guard_b
 
 
 def load_jsonl(file_path: Path) -> list[dict]:
@@ -112,6 +113,7 @@ def run_eval(scan_only: bool = True):
 
     total_attacks_caught = 0
 
+
     # 1. Process Attacks
     for item in attacks:
         grp = item.get("group", "unknown")
@@ -120,7 +122,13 @@ def run_eval(scan_only: bool = True):
         group_stats[grp]["total"] += 1
 
         ctx = build_context_from_item(item, "eval_atk")
-        ctx = run_pipeline(ctx, is_scan_mode=scan_only)
+        if scan_only:
+            ctx = run_pipeline(ctx, is_scan_mode=True)
+        else:
+            ctx = run_guard_a(ctx)
+            if ctx.decision != "BLOCKED":
+                ctx = assistant_loop.run_assistant_loop(ctx)
+                ctx = run_guard_b(ctx)
 
         gateway_ms = ctx.timings.get("guard_a_ms", 0.0) + ctx.timings.get(
             "guard_b_ms", 0.0
@@ -128,8 +136,8 @@ def run_eval(scan_only: bool = True):
         gateway_times.append(gateway_ms)
         llm_times.append(ctx.timings.get("llm_ms", 0.0))
 
-        # Check if attack was caught by Guard A / policy
-        is_caught = ctx.decision in ("FLAGGED", "CLEANED", "BLOCKED")
+        # Check if attack was caught by Guard A / policy / output firewall
+        is_caught = ctx.decision in ("FLAGGED", "CLEANED", "BLOCKED", "BLOCKED_ACTION")
         expected_decisions = item.get("expect", {}).get("decision_in", [])
         if expected_decisions and ctx.decision in expected_decisions:
             is_caught = True
@@ -142,7 +150,13 @@ def run_eval(scan_only: bool = True):
     normal_wrongly_blocked = 0
     for item in normals:
         ctx = build_context_from_item(item, "eval_norm")
-        ctx = run_pipeline(ctx, is_scan_mode=scan_only)
+        if scan_only:
+            ctx = run_pipeline(ctx, is_scan_mode=True)
+        else:
+            ctx = run_guard_a(ctx)
+            if ctx.decision != "BLOCKED":
+                ctx = assistant_loop.run_assistant_loop(ctx)
+                ctx = run_guard_b(ctx)
 
         gateway_ms = ctx.timings.get("guard_a_ms", 0.0) + ctx.timings.get(
             "guard_b_ms", 0.0
@@ -150,7 +164,7 @@ def run_eval(scan_only: bool = True):
         gateway_times.append(gateway_ms)
         llm_times.append(ctx.timings.get("llm_ms", 0.0))
 
-        if ctx.decision == "BLOCKED":
+        if ctx.decision in ("BLOCKED", "BLOCKED_ACTION"):
             normal_wrongly_blocked += 1
 
     # Calculate Summaries

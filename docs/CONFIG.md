@@ -4,8 +4,10 @@
 
 | Name | Example | Notes |
 |---|---|---|
-| `GEMINI_API_KEY` | (secret) | Required. From Google AI Studio. Never log it. |
-| `LLM_BACKEND` | `gemini` | `gemini` or `ollama` |
+| `GEMINI_API_KEY` | (secret) | Required if using Gemini. From Google AI Studio. Never log it. |
+| `GROQ_API_KEY` | (secret) | Required if using Groq. From Groq Cloud Console. |
+| `GROQ_MODEL` | `qwen/qwen3.8-27b` | Default Groq model (note: `llama-3.3-70b-versatile` is unavailable on our account) |
+| `LLM_BACKEND` | `groq` | `gemini`, `groq`, or `ollama` |
 | `GEMINI_MODEL` | `gemini-3.8-flash` | Read from `.env` only (never hard-coded); user verifies free tier availability before setting |
 | `OLLAMA_URL` | `http://localhost:11434` | Optional fallback |
 | `OLLAMA_MODEL` | (set if used) | A local 7B-8B instruct model with tool support |

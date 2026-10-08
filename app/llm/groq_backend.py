@@ -7,6 +7,20 @@ from app.config import settings
 from app.llm.base import LLMBackend, LLMResult, ToolCallRequest
 
 
+def _normalize_json_schema(obj: Any) -> Any:
+    if isinstance(obj, dict):
+        new_dict = {}
+        for k, v in obj.items():
+            if k == "type" and isinstance(v, str):
+                new_dict[k] = v.lower()
+            else:
+                new_dict[k] = _normalize_json_schema(v)
+        return new_dict
+    elif isinstance(obj, list):
+        return [_normalize_json_schema(item) for item in obj]
+    return obj
+
+
 class GroqBackend(LLMBackend):
     def __init__(
         self,
@@ -44,16 +58,18 @@ class GroqBackend(LLMBackend):
             if tools:
                 openai_tools = []
                 for t in tools:
+                    raw_params = t.get(
+                        "parameters",
+                        {"type": "object", "properties": {}},
+                    )
+                    norm_params = _normalize_json_schema(raw_params)
                     openai_tools.append(
                         {
                             "type": "function",
                             "function": {
                                 "name": t["name"],
                                 "description": t.get("description", ""),
-                                "parameters": t.get(
-                                    "parameters",
-                                    {"type": "object", "properties": {}},
-                                ),
+                                "parameters": norm_params,
                             },
                         }
                     )
