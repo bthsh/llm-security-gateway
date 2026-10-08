@@ -170,3 +170,21 @@ def get_recent_requests(limit: int = 50) -> list[dict]:
         return rows
     except Exception:
         return []
+
+
+def get_latest_metrics() -> dict:
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT results_json, ts FROM eval_runs ORDER BY ts DESC LIMIT 1")
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            res = json.loads(row["results_json"])
+            res["measured"] = True
+            res["run_at"] = row["ts"]
+            return res
+    except Exception:
+        pass
+    return {"measured": False}
+

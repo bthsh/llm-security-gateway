@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LLM Security Gateway - Defense Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <!-- TOP BAR -->
+  <header class="top-bar">
+    <div class="brand">
+      <h1 class="brand-title">LLM Security Gateway</h1>
+      <span class="brand-subtitle">Prompt injection defense console</span>
+    </div>
+    
+    <div class="top-controls">
+      <div class="control-group">
+        <label for="profileSelect" class="control-label">Profile</label>
+        <select id="profileSelect" class="select-input">
+          <!-- Populated from GET /api/profiles -->
+        </select>
+      </div>
+
+      <div id="healthPill" class="health-pill health-offline">
+        <span class="status-dot"></span>
+        <span id="healthText" class="health-text">Gemini · Connecting...</span>
+      </div>
+
+      <div class="layers-dropdown">
+        <button id="layersBtn" class="btn btn-secondary" aria-haspopup="true" aria-expanded="false">
+          Layers <span class="caret">▾</span>
+        </button>
+        <div id="layersMenu" class="layers-menu hidden">
+          <div class="layers-menu-header">Security Guard Layers</div>
+          <label class="layer-toggle-label">
+            <input type="checkbox" id="layerClassifier" data-layer="classifier" checked>
+            <span>Classifier (DeBERTa v3)</span>
+          </label>
+          <label class="layer-toggle-label">
+            <input type="checkbox" id="layerJudge" data-layer="judge" checked>
+            <span>LLM Judge</span>
+          </label>
+          <label class="layer-toggle-label">
+            <input type="checkbox" id="layerToolScoping" data-layer="tool_scoping" checked>
+            <span>Tool Scoping</span>
+          </label>
+          <label class="layer-toggle-label">
+            <input type="checkbox" id="layerPolicyEngine" data-layer="policy_engine" checked>
+            <span>Policy Engine</span>
+          </label>
+          <label class="layer-toggle-label">
+            <input type="checkbox" id="layerOutputFirewall" data-layer="output_firewall" checked>
+            <span>Output Firewall</span>
+          </label>
+        </div>
+      </div>
+
+      <button id="resetBtn" class="btn btn-outline" title="Reset current session">Reset</button>
+    </div>
+  </header>
+
+  <!-- BANNER CONTAINER -->
+  <div id="bannerContainer" class="banner-container"></div>
+
+  <!-- MAIN 3-COLUMN LAYOUT -->
+  <main class="grid-container">
+    <!-- COLUMN 1: ATTACK LAB -->
+    <section class="panel panel-attack-lab" aria-label="Attack Lab">
+      <div class="panel-header">
+        <h2 class="panel-title">ATTACK LAB</h2>
+        <span class="panel-tag">Input</span>
+      </div>
+
+      <div class="tab-buttons">
+        <button class="tab-btn active" data-tab="chat">Chat</button>
+        <button class="tab-btn" data-tab="upload">Upload</button>
+        <button class="tab-btn" data-tab="paste">Paste</button>
+      </div>
+
+      <div class="tab-contents">
+        <!-- Chat Tab -->
+        <div id="tabChat" class="tab-pane active">
+          <div class="input-field-wrapper">
+            <textarea id="chatInput" class="textarea-input" placeholder="Type a message or prompt to test..." rows="4"></textarea>
+          </div>
+          <div class="file-attach-bar">
+            <label for="filePicker" class="btn btn-small btn-outline">
+              Attach file
+            </label>
+            <input type="file" id="filePicker" class="hidden-file-input" multiple accept=".pdf,.html,.htm,.eml,.txt">
+            <div id="attachedFilesList" class="attached-files-list"></div>
+          </div>
+        </div>
+
+        <!-- Upload Tab -->
+        <div id="tabUpload" class="tab-pane">
+          <div id="dropZone" class="drop-zone">
+            <p class="drop-zone-text">Drag & drop files here or click to choose</p>
+            <span class="drop-zone-sub">Supports .eml, .pdf, .html, .txt (Max 5MB)</span>
+            <input type="file" id="dropPicker" class="hidden-file-input" multiple accept=".pdf,.html,.htm,.eml,.txt">
+          </div>
+          <div id="uploadFilesList" class="attached-files-list"></div>
+        </div>
+
+        <!-- Paste Tab -->
+        <div id="tabPaste" class="tab-pane">
+          <textarea id="pasteInput" class="textarea-input font-mono" placeholder="Paste untrusted text or payload here..." rows="6"></textarea>
+        </div>
+      </div>
+
+      <div class="action-bar">
+        <button id="sendBtn" class="btn btn-primary btn-block">Send (Full Pipeline)</button>
+        <button id="scanBtn" class="btn btn-secondary btn-block">Check Only (Guard A)</button>
+      </div>
+
+      <div class="sample-section">
+        <h3 class="section-subtitle">SAMPLE ATTACK / DATA FILES</h3>
+        <div id="sampleList" class="sample-list">
+          <!-- Populated from GET /api/samples -->
+          <div class="loading-placeholder">Loading sample files...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- COLUMN 2: PIPELINE -->
+    <section class="panel panel-pipeline" aria-label="Pipeline Trace">
+      <div class="panel-header">
+        <h2 class="panel-title">PIPELINE</h2>
+        <span id="pipelineTime" class="panel-tag font-mono">0.0 ms</span>
+      </div>
+
+      <div id="pipelineEmpty" class="pipeline-empty">
+        <p>Send a message or load a sample file to see the pipeline.</p>
+      </div>
+
+      <div id="pipelineContent" class="pipeline-content hidden">
+        <div class="guard-section-title">GUARD A · before the AI</div>
+        <div id="traceGuardA" class="trace-rows"></div>
+
+        <div id="traceLLM" class="trace-row trace-row-llm">
+          <span class="trace-step">LLM</span>
+          <span class="trace-name">Gemini Call</span>
+          <span id="llmStatusBadge" class="status-badge status-info">INFO</span>
+          <span id="llmReason" class="trace-reason">gemini-3.8-flash</span>
+          <span id="llmTime" class="trace-time font-mono">--</span>
+        </div>
+
+        <div class="guard-section-title">GUARD B · after the AI</div>
+        <div id="traceGuardB" class="trace-rows"></div>
+
+        <div class="guard-section-title">AUDIT LOG</div>
+        <div id="traceAuditLog" class="trace-rows"></div>
+      </div>
+    </section>
+
+    <!-- COLUMN 3: RESULT -->
+    <section class="panel panel-result" aria-label="Gateway Result">
+      <div class="panel-header">
+        <h2 class="panel-title">RESULT</h2>
+        <button id="addTestsetBtn" class="btn btn-small btn-outline hidden">Add to test set</button>
+      </div>
+
+      <!-- Decision Banner -->
+      <div id="decisionBanner" class="decision-banner decision-none" aria-live="polite">
+        <span id="decisionWord" class="decision-word">NO REQUEST YET</span>
+        <span id="decisionReason" class="decision-sub">Awaiting input</span>
+      </div>
+
+      <!-- Approval Card (visible only when pending_action exists) -->
+      <div id="approvalCard" class="card approval-card hidden">
+        <div class="card-header border-amber">
+          <span class="card-title text-amber font-bold">ACTION PENDING USER APPROVAL</span>
+        </div>
+        <div class="card-body">
+          <p id="approvalText" class="approval-text"></p>
+          <div id="approvalDetails" class="approval-details font-mono"></div>
+          <div class="approval-actions">
+            <button id="approveBtn" class="btn btn-success">Approve Action</button>
+            <button id="denyBtn" class="btn btn-danger">Deny Action</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Before / After Card -->
+      <div id="beforeAfterCard" class="card hidden">
+        <div class="card-header">
+          <span class="card-title">Before / After Diff</span>
+        </div>
+        <div id="beforeAfterContent" class="card-body diff-box font-mono"></div>
+      </div>
+
+      <!-- AI Reply -->
+      <div id="replyCard" class="card">
+        <div class="card-header">
+          <span class="card-title">AI Reply</span>
+        </div>
+        <div id="replyText" class="card-body reply-text">
+          <em class="text-muted">No reply generated yet.</em>
+        </div>
+      </div>
+
+      <!-- Tool Calls Panel -->
+      <div id="toolCallsCard" class="card">
+        <div class="card-header">
+          <span class="card-title">Tool Calls</span>
+        </div>
+        <div id="toolCallsContent" class="card-body font-mono">
+          <em class="text-muted">No tool calls.</em>
+        </div>
+      </div>
+
+      <!-- Outbox Panel -->
+      <div id="outboxCard" class="card">
+        <div class="card-header">
+          <span class="card-title">Outbox</span>
+        </div>
+        <div id="outboxContent" class="card-body font-mono">
+          <em class="text-muted">Empty · nothing was sent</em>
+        </div>
+      </div>
+
+      <!-- Redactions Panel -->
+      <div id="redactionsCard" class="card">
+        <div class="card-header">
+          <span class="card-title">PII Redactions</span>
+        </div>
+        <div id="redactionsContent" class="card-body font-mono">
+          <em class="text-muted">None</em>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- SCOREBOARD STRIP -->
+  <footer class="scoreboard-strip">
+    <div class="scoreboard-header">
+      <span class="scoreboard-title">SCOREBOARD</span>
+      <span id="evalTimestamp" class="eval-timestamp font-mono">Evaluation: Not measured yet</span>
+    </div>
+
+    <div class="scoreboard-grid">
+      <div class="stat-card">
+        <div class="stat-label">Attacks caught</div>
+        <div id="statAttacks" class="stat-value font-mono">Not measured yet</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Normal wrongly blocked</div>
+        <div id="statNormal" class="stat-value font-mono">Not measured yet</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Median gateway time</div>
+        <div id="statGatewayMs" class="stat-value font-mono">Not measured yet</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Median LLM time</div>
+        <div id="statLlmMs" class="stat-value font-mono">Not measured yet</div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/app.js"></script>
+</body>
+</html>
