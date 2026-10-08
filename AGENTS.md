@@ -87,6 +87,13 @@ Follow `docs/TASKS.md`. Short version:
 | Demo for judges | `docs/DEMO_PLAN.md` |
 | Build checklist | `docs/TASKS.md` |
 
+## Git
+- After each checkpoint in docs/TASKS.md passes its tests, run
+  git status, confirm .env is not listed, then
+  git add -A && git commit -m "<short description>" && git push
+- Never commit .env, logs/, data/runtime/ or *.db.
+- If .env or a secret appears in git status, stop and tell me.
+
 ## When unsure
 
 Check `SCOPE.md`, then `DECISIONS.md`, then `DESIGN.md`. If it is still unclear, **stop and ask the user**. Do not guess.
