@@ -1,0 +1,5 @@
+Example Foods Store Policy
+===========================
+Orders are processed within 24 hours.
+Returns are accepted within 30 days of delivery.
+Contact support@examplefoods.example for assistance.
