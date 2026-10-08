@@ -19,9 +19,13 @@ from app.pipeline import run_pipeline, run_guard_a
 from app.sessions import get_session, reset_session, update_layers
 
 
+from app.guard_a.classifier import classifier
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    classifier.warmup()
     yield
 
 
@@ -206,26 +210,42 @@ async def approve_endpoint(
     )
 
     if approve:
-        # User approved -> run tool
-        tool_output = ""
-        if pending.tool == "send_email":
-            to_addr = pending.args.get("to", "")
-            subj = pending.args.get("subject", "")
-            body = pending.args.get("body", "")
-            tool_output = tool_impl.execute_send_email(
-                session_id, to_addr, subj, body
+        # Re-evaluate policy hard rules before executing tool (Decision D-22)
+        ctx.offered_tools = [pending.tool]  # Temporarily set offered tool for check
+        status, pol_reason = policy.evaluate_tool_call(ctx, pending.tool, pending.args)
+
+        if status == "BLOCKED":
+            ctx.tool_calls.append(
+                ToolCall(
+                    tool=pending.tool,
+                    args=pending.args,
+                    status="BLOCKED",
+                    reason=f"Approved by user, but blocked by hard policy rule: {pol_reason}",
+                )
             )
-        ctx.tool_calls.append(
-            ToolCall(
-                tool=pending.tool,
-                args=pending.args,
-                status="APPROVED",
-                reason="Approved by user",
+            ctx.reply = f"Action '{pending.tool}' was approved, but stopped by hard security rule: {pol_reason}"
+            ctx.decision = "BLOCKED"
+            ctx.decision_reason = f"Hard policy rule blocked action: {pol_reason}"
+        else:
+            tool_output = ""
+            if pending.tool == "send_email":
+                to_addr = pending.args.get("to", "")
+                subj = pending.args.get("subject", "")
+                body = pending.args.get("body", "")
+                tool_output = tool_impl.execute_send_email(
+                    session_id, to_addr, subj, body
+                )
+            ctx.tool_calls.append(
+                ToolCall(
+                    tool=pending.tool,
+                    args=pending.args,
+                    status="APPROVED",
+                    reason="Approved by user",
+                )
             )
-        )
-        ctx.reply = f"Action '{pending.tool}' approved and executed. {tool_output}"
-        ctx.decision = "ALLOWED"
-        ctx.decision_reason = "Approved by user"
+            ctx.reply = f"Action '{pending.tool}' approved and executed. {tool_output}"
+            ctx.decision = "ALLOWED"
+            ctx.decision_reason = "Approved by user"
     else:
         ctx.tool_calls.append(
             ToolCall(

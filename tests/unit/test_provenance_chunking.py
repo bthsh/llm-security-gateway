@@ -72,3 +72,27 @@ def test_untrusted_attachment_taints_session_and_hides_send_email():
     assert "send_email" in ctx.hidden_tools
     assert "send_email" not in ctx.offered_tools
 
+
+def test_s13_risky_tool_hidden_when_session_tainted():
+    # S-13: Risky tool with tainted session (tool hidden at step 7)
+    from app.guard_a.canary_tools import run as run_canary_tools
+    from app.sessions import get_session
+
+    sess_id = "sess_s13_test"
+    session = get_session(sess_id)
+    session.taint = True
+
+    ctx = RequestContext(
+        request_id="req_s13",
+        session_id=sess_id,
+        profile="customer_support",
+        segments=[
+            Segment(id="s1", source="user", trust="trusted", text="Send an email to john")
+        ],
+    )
+    result = run_canary_tools(ctx)
+    assert result.status == "INFO"
+    assert "send_email" in ctx.hidden_tools
+    assert "send_email" not in ctx.offered_tools
+
+

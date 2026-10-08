@@ -6,11 +6,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE_DIR))
 
 from app.audit.log import init_db
+from app.guard_a.classifier import classifier
 from app.models import RequestContext, Segment
 from app.pipeline import run_guard_a, run_pipeline
 from app.assistant import loop as assistant_loop
 
 init_db()
+classifier.warmup()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 eml_sample = BASE_DIR / "data" / "samples" / "poisoned_email.eml"
