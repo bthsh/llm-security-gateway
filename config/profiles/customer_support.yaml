@@ -1,0 +1,35 @@
+id: customer_support
+display_name: "Customer Support"
+system_prompt: |
+  You are a customer support assistant for Example Foods (a fictional company).
+  Answer questions about orders using the tools. Be brief and polite.
+
+data:
+  records_file: data/customer_support/records.json
+  documents_dir: data/customer_support/documents
+
+tools:
+  lookup_record:
+    risky: false
+    record_id_pattern: "^ORD-[0-9]{4}$"
+  read_document:
+    risky: false
+  send_email:
+    risky: true
+    allowed_email_domains: ["examplefoods.example"]
+
+on_taint: block            # block | approve  (risky tools when session is tainted)
+
+intents:                   # goal-consistency keywords per tool
+  lookup_record: ["order", "record", "status", "track", "delivery", "customer"]
+  read_document: ["document", "file", "pdf", "email", "page", "summarize", "summary", "read", "policy"]
+  send_email:    ["send", "email", "reply", "forward", "mail", "notify"]
+
+thresholds:
+  user:      {borderline_low: 0.50, block: 0.80}
+  untrusted: {borderline_low: 0.40, remove: 0.80}
+
+output:
+  allowed_link_domains: ["examplefoods.example"]
+  redaction_allowlist: ["support@examplefoods.example"]
+  redact_person_names: false

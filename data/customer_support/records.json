@@ -1,0 +1,18 @@
+{
+  "ORD-1001": {
+    "record_id": "ORD-1001",
+    "customer_name": "Alice Smith",
+    "email": "alice@examplefoods.example",
+    "status": "Shipped",
+    "items": ["Organic Apple Cider x2", "Gluten Free Bread x1"],
+    "address": "123 Market St, Springfield"
+  },
+  "ORD-1002": {
+    "record_id": "ORD-1002",
+    "customer_name": "Bob Jones",
+    "email": "bob@examplefoods.example",
+    "status": "Processing",
+    "items": ["Almond Milk 1L x3"],
+    "address": "456 Elm St, Shelbyville"
+  }
+}

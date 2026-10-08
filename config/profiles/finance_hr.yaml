@@ -1,0 +1,35 @@
+id: finance_hr
+display_name: "Finance / HR"
+system_prompt: |
+  You are an internal HR and finance assistant for Example Corp (a fictional company).
+  Answer questions about employee records and company policy using the tools.
+
+data:
+  records_file: data/finance_hr/records.json
+  documents_dir: data/finance_hr/documents
+
+tools:
+  lookup_record:
+    risky: false
+    record_id_pattern: "^EMP-[0-9]{4}$"
+  read_document:
+    risky: false
+  send_email:
+    risky: true
+    allowed_email_domains: ["examplecorp.example"]
+
+on_taint: approve          # block | approve  (risky tools when session is tainted)
+
+intents:
+  lookup_record: ["employee", "record", "payroll", "salary", "emp", "staff"]
+  read_document: ["document", "file", "pdf", "email", "policy", "handbook", "summarize", "read"]
+  send_email:    ["send", "email", "reply", "forward", "mail", "notify"]
+
+thresholds:
+  user:      {borderline_low: 0.45, block: 0.75}
+  untrusted: {borderline_low: 0.35, remove: 0.75}
+
+output:
+  allowed_link_domains: ["examplecorp.example"]
+  redaction_allowlist: ["hr@examplecorp.example"]
+  redact_person_names: true

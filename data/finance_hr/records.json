@@ -1,0 +1,18 @@
+{
+  "EMP-2001": {
+    "record_id": "EMP-2001",
+    "name": "Carlos Rivera",
+    "email": "carlos@examplecorp.example",
+    "department": "Engineering",
+    "role": "Senior Developer",
+    "salary_tier": "T4"
+  },
+  "EMP-2002": {
+    "record_id": "EMP-2002",
+    "name": "Diana Prince",
+    "email": "diana@examplecorp.example",
+    "department": "Finance",
+    "role": "Financial Analyst",
+    "salary_tier": "T3"
+  }
+}

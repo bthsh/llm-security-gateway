@@ -97,3 +97,40 @@ Follow `docs/TASKS.md`. Short version:
 ## When unsure
 
 Check `SCOPE.md`, then `DECISIONS.md`, then `DESIGN.md`. If it is still unclear, **stop and ask the user**. Do not guess.
+Add this section to the bottom of AGENTS.md and commit it:
+
+## Progress summaries
+
+After completing each checkpoint in docs/TASKS.md, before moving to
+the next one, write a short summary in this exact format and post it
+in the chat:
+
+---
+CHECKPOINT [number]: [name]
+Status: DONE / PARTIAL / BLOCKED
+
+What was built:
+- [one line per file or feature completed]
+
+Test results:
+- [pass/fail counts, or "no tests yet" if none written]
+
+Is the build on track?
+- [YES / NO / BEHIND]
+- [one sentence on why, and what was skipped or deferred]
+
+Next checkpoint:
+- [name and what it needs from me before starting]
+
+Any decision needed from you:
+- [question, or "none"]
+---
+
+Rules:
+- Write this after every checkpoint, not just when something goes wrong.
+- Never skip the "Is the build on track?" line.
+- If any step was skipped or deferred, name it explicitly.
+- If a decision is needed, stop and wait for my answer before
+  continuing to the next checkpoint.
+- If the build is BLOCKED, explain what is blocking it and what
+  I need to do.
