@@ -6,7 +6,7 @@
 |---|---|---|
 | `GEMINI_API_KEY` | (secret) | Required. From Google AI Studio. Never log it. |
 | `LLM_BACKEND` | `gemini` | `gemini` or `ollama` |
-| `GEMINI_MODEL` | `gemini-2.5-flash` | Read from `.env` only (never hard-coded); user verifies free tier availability before setting |
+| `GEMINI_MODEL` | `gemini-3.8-flash` | Read from `.env` only (never hard-coded); user verifies free tier availability before setting |
 | `OLLAMA_URL` | `http://localhost:11434` | Optional fallback |
 | `OLLAMA_MODEL` | (set if used) | A local 7B-8B instruct model with tool support |
 | `CLASSIFIER_MODEL` | `protectai/deberta-v3-base-prompt-injection-v2` | Primary Hugging Face classifier candidate (English-focused) |

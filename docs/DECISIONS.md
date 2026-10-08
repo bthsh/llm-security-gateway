@@ -5,7 +5,7 @@ These are final. Do not reopen them without the user's approval.
 | ID | Decision | Why |
 |---|---|---|
 | D-01 | Build a **general, model-agnostic gateway**, not a company-specific chatbot | CB-01 asks for "a gateway that sits between users, data sources and an LLM app". Company rules go in YAML profiles. |
-| D-02 | **Gemini API** is the LLM behind the gateway | Strong instruction-following and tool calling, free tier, no load on the laptop |
+| D-02 | **Gemini API (`gemini-3.8-flash`)** is the LLM behind the gateway | Strong instruction-following and tool calling, free tier, no load on the laptop |
 | D-03 | **Ollama is an optional fallback**, selected by one setting | Protects the demo if wifi or Gemini fails. Not required for the MVP. |
 | D-04 | **No "gateway OFF" mode** | The team chose not to show an unprotected run. Attacks are shown through the hidden text found and the blocked actions. |
 | D-05 | **Ten steps: Guard A = steps 1-7, Guard B = steps 8-9, step 10 logs both** | Clear story: check what goes in, check what comes out |
