@@ -19,7 +19,7 @@ from app.models import (
     LayerSettings,
     ToolCall,
 )
-from app.pipeline import run_pipeline, run_guard_a
+from app.pipeline import run_pipeline, run_guard_a, run_guard_b
 from app.sessions import get_session, reset_session, update_layers
 from app.guard_a.classifier import classifier
 from app.guard_b import policy
@@ -208,9 +208,7 @@ async def chat_endpoint(
     if ctx.decision != "BLOCKED":
         ctx = assistant_loop.run_assistant_loop(ctx)
         # Final pipeline completion & Guard B
-        ctx = run_pipeline(ctx, is_scan_mode=False)
-    else:
-        ctx = run_pipeline(ctx, is_scan_mode=False)
+        ctx = run_guard_b(ctx)
 
     return ChatResponse(
         request_id=ctx.request_id,

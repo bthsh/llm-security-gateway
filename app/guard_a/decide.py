@@ -66,19 +66,25 @@ def run(ctx: RequestContext) -> StageResult:
                 continue
 
             removed_chunks = [c for c in seg_chunks if c.action == "remove"]
+            kept_chunks = [c for c in seg_chunks if c.action != "remove"]
             drop_ratio = (
                 len(removed_chunks) / len(seg_chunks) if seg_chunks else 0.0
             )
 
-            kept_text_parts = []
+            kept_text_parts = [c.text for c in kept_chunks]
+            kept_text_len = len(" ".join(kept_text_parts).strip())
             removed_items = []
 
-            if seg.trust == "untrusted" and drop_ratio > settings.DOC_DROP_RATIO:
+            if (
+                seg.trust == "untrusted"
+                and drop_ratio > settings.DOC_DROP_RATIO
+                and kept_text_len < 50
+            ):
                 # Drop entire document
                 removed_items.append(
                     {
                         "text": seg.text,
-                        "reason": f"Entire file dropped (removal ratio {drop_ratio:.2f} > {settings.DOC_DROP_RATIO})",
+                        "reason": f"Entire file dropped (removal ratio {drop_ratio:.2f} > {settings.DOC_DROP_RATIO} and visible text < 50 chars)",
                         "hidden": False,
                     }
                 )
@@ -94,8 +100,6 @@ def run(ctx: RequestContext) -> StageResult:
                                 "hidden": c.is_hidden,
                             }
                         )
-                    else:
-                        kept_text_parts.append(c.text)
 
                 seg.text = " ".join(kept_text_parts)
 

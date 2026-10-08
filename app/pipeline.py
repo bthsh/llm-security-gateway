@@ -88,6 +88,39 @@ def run_guard_a(ctx: RequestContext) -> RequestContext:
     return ctx
 
 
+def run_guard_b(ctx: RequestContext) -> RequestContext:
+    guard_b_start = time.perf_counter()
+
+    # Step 8: Policy Engine
+    res8 = policy.run(ctx)
+    ctx.trace.append(res8)
+
+    # Step 9: Output Firewall
+    res9 = output_firewall.run(ctx)
+    ctx.trace.append(res9)
+
+    guard_b_ms = (time.perf_counter() - guard_b_start) * 1000.0
+    ctx.timings["guard_b_ms"] = guard_b_ms
+
+    # Step 10: Audit Log
+    log_res = StageResult(
+        step=10,
+        name="audit",
+        guard="-",
+        status="LOGGED",
+        reason="Logged to SQLite",
+        ms=0.0,
+    )
+    ctx.trace.append(log_res)
+
+    guard_a_ms = ctx.timings.get("guard_a_ms", 0.0)
+    llm_ms = ctx.timings.get("llm_ms", 0.0)
+    ctx.timings["total_ms"] = guard_a_ms + llm_ms + guard_b_ms
+
+    log.log_request(ctx)
+    return ctx
+
+
 def run_pipeline(
     ctx: RequestContext, is_scan_mode: bool = False
 ) -> RequestContext:
@@ -96,7 +129,6 @@ def run_pipeline(
     ctx = run_guard_a(ctx)
 
     if is_scan_mode:
-        # In scan mode: fill trace array for steps 6-10 and llm if not already filled by early exit
         if ctx.decision != "BLOCKED":
             scan_skipped = [
                 (6, "spotlight", "A"),
@@ -106,7 +138,6 @@ def run_pipeline(
                 (9, "output_firewall", "B"),
             ]
             for s_num, s_name, s_guard in scan_skipped:
-                # Check if not already in trace
                 if not any(t.name == s_name for t in ctx.trace):
                     ctx.trace.append(
                         StageResult(
@@ -144,45 +175,4 @@ def run_pipeline(
         ctx.timings["total_ms"] = total_ms
         return ctx
 
-    # LLM Call placeholder
-    llm_start = time.perf_counter()
-    ctx.trace.append(
-        StageResult(
-            step="llm",
-            name="llm",
-            guard="-",
-            status="INFO",
-            reason="Gemini placeholder",
-            ms=0.0,
-        )
-    )
-    llm_ms = (time.perf_counter() - llm_start) * 1000.0
-    ctx.timings["llm_ms"] = llm_ms
-
-    # Guard B
-    guard_b_start = time.perf_counter()
-    res8 = policy.run(ctx)
-    ctx.trace.append(res8)
-
-    res9 = output_firewall.run(ctx)
-    ctx.trace.append(res9)
-
-    guard_b_ms = (time.perf_counter() - guard_b_start) * 1000.0
-    ctx.timings["guard_b_ms"] = guard_b_ms
-
-    # Step 10 Audit
-    log_res = StageResult(
-        step=10,
-        name="audit",
-        guard="-",
-        status="LOGGED",
-        reason="Logged to SQLite",
-        ms=0.0,
-    )
-    ctx.trace.append(log_res)
-
-    total_ms = (time.perf_counter() - total_start) * 1000.0
-    ctx.timings["total_ms"] = total_ms
-
-    log.log_request(ctx)
-    return ctx
+    return run_guard_b(ctx)

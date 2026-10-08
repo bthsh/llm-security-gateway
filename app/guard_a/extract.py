@@ -158,14 +158,17 @@ def extract_email(content_bytes: bytes) -> tuple[str, str]:
     # Decision D-28: Sentence diff between plain part and HTML part
     # Any sentence present in HTML but missing from plain text becomes hidden_text
     if plain_part and html_part:
+        norm_plain = " ".join(plain_part.split())
         plain_sentences = set(
             s.strip().lower()
-            for s in re.split(r"(?<=[.!?\n])\s+", plain_part)
+            for s in re.split(r"(?<=[.!?])\s+", norm_plain)
             if s.strip()
         )
+
+        norm_html_vis = " ".join(visible_html.split())
         html_sentences = [
             s.strip()
-            for s in re.split(r"(?<=[.!?\n])\s+", visible_html)
+            for s in re.split(r"(?<=[.!?])\s+", norm_html_vis)
             if s.strip()
         ]
 
