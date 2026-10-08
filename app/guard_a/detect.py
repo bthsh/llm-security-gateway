@@ -1,5 +1,6 @@
 import time
 from app.config import settings, load_profile
+from app.guard_a.classifier import classifier
 from app.guard_a.rules import rule_engine
 from app.models import RequestContext, StageResult, Finding
 
@@ -17,13 +18,39 @@ def run(ctx: RequestContext) -> StageResult:
             "borderline_low", 0.40
         )
 
-        for chunk in ctx.chunks:
+        # Batch classifier evaluation if classifier layer is on
+        chunk_texts_for_cls = []
+        indices_for_cls = []
+
+        for i, chunk in enumerate(ctx.chunks):
+            rule_score, _ = rule_engine.evaluate_chunk(chunk)
+            # Only run classifier if rules didn't already score >= 0.80 (saves time)
+            if ctx.layers.classifier and rule_score < 0.80:
+                chunk_texts_for_cls.append(chunk.text)
+                indices_for_cls.append(i)
+
+        classifier_scores = [0.0] * len(ctx.chunks)
+        if chunk_texts_for_cls:
+            cls_preds = classifier.predict_batch(chunk_texts_for_cls)
+            for idx, prob in zip(indices_for_cls, cls_preds):
+                classifier_scores[idx] = prob
+
+        for i, chunk in enumerate(ctx.chunks):
             # 1. Evaluate rules
             rule_score, chunk_findings = rule_engine.evaluate_chunk(chunk)
             findings.extend(chunk_findings)
 
-            # 2. Classifier score (0.0 in basic detect; classifier module can update it)
-            classifier_score = 0.0
+            # 2. Classifier score
+            cls_score = classifier_scores[i]
+            if cls_score >= 0.50:
+                findings.append(
+                    Finding(
+                        rule_id="classifier",
+                        score=cls_score,
+                        reason=f"Classifier score {cls_score:.2f} >= 0.50",
+                        owasp="LLM01",
+                    )
+                )
 
             # 3. Hidden text bonus
             hidden_bonus = (
@@ -41,7 +68,7 @@ def run(ctx: RequestContext) -> StageResult:
 
             # Total score
             final_score = min(
-                1.0, max(rule_score, classifier_score) + hidden_bonus
+                1.0, max(rule_score, cls_score) + hidden_bonus
             )
             chunk.score = final_score
             if final_score > top_score:
@@ -49,6 +76,8 @@ def run(ctx: RequestContext) -> StageResult:
 
             # Populate chunk reasons
             chunk.reasons = [f.reason for f in chunk_findings]
+            if cls_score >= 0.50:
+                chunk.reasons.append(f"Classifier score: {cls_score:.2f}")
             if chunk.is_hidden:
                 chunk.reasons.append("Hidden text bonus +0.30")
 
