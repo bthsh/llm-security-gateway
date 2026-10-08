@@ -4,8 +4,7 @@ from typing import Any
 from app.assistant import prompts, tools as tool_impl
 from app.config import settings
 from app.guard_b import policy
-from app.llm.base import LLMBackend
-from app.llm.gemini import GeminiBackend
+from app.llm import get_llm_backend, LLMBackend
 from app.models import RequestContext, Segment, ToolCall, PendingAction
 
 
@@ -13,7 +12,7 @@ def run_assistant_loop(
     ctx: RequestContext, backend: LLMBackend | None = None
 ) -> RequestContext:
     if backend is None:
-        backend = GeminiBackend()
+        backend = get_llm_backend()
 
     system_prompt = prompts.build_system_prompt(ctx)
     offered_tool_defs = [

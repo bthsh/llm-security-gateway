@@ -189,13 +189,15 @@ async function loadHealth() {
     if (res.ok) {
       const data = await res.json();
       healthPill.className = 'health-pill health-online';
-      healthText.textContent = `Gemini · Connected (${data.gemini_model})`;
+      const backendName = (data.backend || 'gemini').toUpperCase();
+      const modelName = data.model || data.gemini_model || '';
+      healthText.textContent = `${backendName} · Connected (${modelName})`;
     } else {
       throw new Error('Health check failed');
     }
   } catch (err) {
     healthPill.className = 'health-pill health-offline';
-    healthText.textContent = 'Gemini · Unavailable';
+    healthText.textContent = 'Backend · Unavailable';
   }
 }
 

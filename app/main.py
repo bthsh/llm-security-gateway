@@ -37,11 +37,22 @@ app = FastAPI(title="LLM Security Gateway", lifespan=lifespan)
 
 @app.get("/api/health")
 def get_health():
+    active_model = (
+        settings.GROQ_MODEL
+        if settings.LLM_BACKEND == "groq"
+        else (
+            settings.OLLAMA_MODEL
+            if settings.LLM_BACKEND == "ollama"
+            else settings.GEMINI_MODEL
+        )
+    )
     return {
         "status": "ok",
         "gateway": "online",
         "backend": settings.LLM_BACKEND,
+        "model": active_model,
         "gemini_model": settings.GEMINI_MODEL,
+        "groq_model": settings.GROQ_MODEL,
         "classifier": settings.CLASSIFIER_MODEL,
     }
 
