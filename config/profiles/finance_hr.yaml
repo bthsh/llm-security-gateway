@@ -23,7 +23,7 @@ on_taint: approve          # block | approve  (risky tools when session is taint
 intents:
   lookup_record: ["employee", "record", "payroll", "salary", "emp", "staff"]
   read_document: ["document", "file", "pdf", "email", "policy", "handbook", "summarize", "read"]
-  send_email:    ["send", "email", "reply", "forward", "mail", "notify"]
+  send_email:    ["send email", "send", "reply", "forward", "mail to", "notify"]
 
 thresholds:
   user:      {borderline_low: 0.45, block: 0.75}

@@ -23,7 +23,7 @@ on_taint: block            # block | approve  (risky tools when session is taint
 intents:                   # goal-consistency keywords per tool
   lookup_record: ["order", "record", "status", "track", "delivery", "customer"]
   read_document: ["document", "file", "pdf", "email", "page", "summarize", "summary", "read", "policy"]
-  send_email:    ["send", "email", "reply", "forward", "mail", "notify"]
+  send_email:    ["send email", "send", "reply", "forward", "mail to", "notify"]
 
 thresholds:
   user:      {borderline_low: 0.50, block: 0.80}

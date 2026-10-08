@@ -83,3 +83,64 @@ def test_s14_approval_cannot_override_hard_domain_rule():
     )
     assert status == "BLOCKED"
     assert "not in allowed list" in reason
+
+
+def test_s08_inline_image_link_stripped_from_reply():
+    # S-08: Inline image link stripped from reply (![x](https://evil.example))
+    ctx = RequestContext(
+        request_id="req_s08",
+        session_id="sess_s08",
+        profile="customer_support",
+        reply="Here is your image: ![x](https://evil.example/pic.jpg) and text.",
+    )
+    result = output_firewall.run(ctx)
+    assert result.status in ("PASSED", "CLEANED")
+    assert "![x](https://evil.example/pic.jpg)" not in ctx.reply
+    assert ctx.reply.strip() == "Here is your image:  and text."
+
+
+def test_goal_consistency_check_blocks_unmatched_risky_tool():
+    # Goal-consistency check: user asks to summarize email, AI attempts send_email -> BLOCKED
+    ctx = RequestContext(
+        request_id="req_goal",
+        session_id="sess_goal",
+        profile="customer_support",
+        offered_tools=["send_email"],
+        segments=[
+            Segment(
+                id="s1",
+                source="user",
+                trust="trusted",
+                text="summarize this email",
+            )
+        ],
+    )
+    status, reason = policy.evaluate_tool_call(
+        ctx, "send_email", {"to": "user@examplefoods.example", "subject": "hi", "body": "test"}
+    )
+    assert status == "BLOCKED"
+    assert "goal" in reason.lower()
+
+
+def test_api_layers_classifier_disabled_bypasses_step4_classifier():
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    client = TestClient(app)
+    session_id = "sess_layers_toggle_test"
+
+    # Set classifier layer to false
+    res = client.post("/api/layers", data={"session_id": session_id, "layer": "classifier", "value": "false"})
+    assert res.status_code == 200
+    assert res.json()["classifier"] is False
+
+    # Perform scan
+    scan_res = client.post(
+        "/api/scan",
+        data={"session_id": session_id, "profile": "customer_support", "message": "What is the status of ORD-1001?"},
+    )
+    assert scan_res.status_code == 200
+    data = scan_res.json()
+    assert data["decision"] in ("ALLOWED", "CLEANED")
+    assert data["layers"]["classifier"] is False
+

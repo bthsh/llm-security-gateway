@@ -87,8 +87,8 @@ def evaluate_tool_call(
     if not matches_intent:
         if is_risky:
             return (
-                "NEEDS_APPROVAL",
-                f"Risky tool '{tool_name}' goal-consistency check failed",
+                "BLOCKED",
+                f"Risky tool '{tool_name}' goal-consistency check failed (LLM06)",
             )
 
     return "ALLOWED", "Policy checks passed"
