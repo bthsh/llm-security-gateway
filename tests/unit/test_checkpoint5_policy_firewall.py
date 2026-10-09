@@ -144,3 +144,24 @@ def test_api_layers_classifier_disabled_bypasses_step4_classifier():
     assert data["decision"] in ("ALLOWED", "CLEANED")
     assert data["layers"]["classifier"] is False
 
+
+def test_step8_policy_block_sets_blocked_action_decision():
+    from app.pipeline import run_guard_b
+    ctx = RequestContext(
+        request_id="req_blocked_action_test",
+        session_id="sess_blocked_action_test",
+        profile="customer_support",
+        decision="ALLOWED",
+        tool_calls=[
+            ToolCall(
+                tool="send_email",
+                args={"to": "attacker@evil.example", "subject": "hi", "body": "test"},
+                status="BLOCKED",
+                reason="Recipient domain 'evil.example' not in allowed list",
+            )
+        ],
+    )
+    ctx = run_guard_b(ctx)
+    assert ctx.decision == "BLOCKED_ACTION"
+    assert "evil.example" in ctx.decision_reason
+

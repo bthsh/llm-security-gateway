@@ -493,8 +493,23 @@ function renderResponse(data) {
   // Pipeline Trace Rows
   renderTrace(data.trace);
 
+  // Fallback update for LLM Time if timing exists
+  if (data.timings && typeof data.timings.llm_ms === 'number' && data.timings.llm_ms > 0) {
+    llmTime.textContent = `${data.timings.llm_ms.toFixed(1)} ms`;
+  }
+
+  // Final Decision Banner Computation
+  let finalDecision = data.decision;
+  let finalReason = data.decision_reason;
+
+  const blockedToolCall = (data.tool_calls || []).find(tc => tc.status === 'BLOCKED');
+  if (blockedToolCall && (finalDecision === 'ALLOWED' || finalDecision === 'CLEANED')) {
+    finalDecision = 'BLOCKED_ACTION';
+    finalReason = blockedToolCall.reason || finalReason;
+  }
+
   // Decision Banner
-  renderDecisionBanner(data.decision, data.decision_reason);
+  renderDecisionBanner(finalDecision, finalReason);
 
   // Before / After Diff
   renderBeforeAfter(data.before_after);
@@ -532,10 +547,22 @@ function renderTrace(trace) {
 
   trace.forEach((step) => {
     if (step.name === 'llm') {
+      const llmName = document.getElementById('llmName');
       llmStatusBadge.className = getStatusBadgeClass(step.status);
       llmStatusBadge.textContent = step.status;
-      llmReason.textContent = step.reason || 'gemini';
-      llmTime.textContent = `${(step.ms || 0).toFixed(1)} ms`;
+
+      if (step.status === 'SKIPPED') {
+        if (llmName) llmName.textContent = 'LLM Call';
+        llmReason.textContent = step.reason || 'request blocked at step 5';
+        llmTime.textContent = '0.0 ms';
+      } else {
+        const parts = (step.reason || '').split(' · ');
+        if (llmName) {
+          llmName.textContent = parts[0] ? `${parts[0]} Call` : 'LLM Call';
+        }
+        llmReason.textContent = step.reason || 'Response received';
+        llmTime.textContent = `${(step.ms || 0).toFixed(1)} ms`;
+      }
       return;
     }
 
@@ -594,7 +621,11 @@ function renderDecisionBanner(decision, reason) {
       break;
     case 'BLOCKED_ACTION':
       decisionBanner.classList.add('decision-blocked-action');
-      decisionWord.textContent = 'BLOCKED ACTION · AI tool action stopped by policy';
+      decisionWord.textContent = 'ACTION BLOCKED · AI attempted a disallowed action';
+      break;
+    case 'REPLY_WITHHELD':
+      decisionBanner.classList.add('decision-blocked');
+      decisionWord.textContent = 'REPLY WITHHELD · Response blocked by output firewall';
       break;
     case 'NEEDS_APPROVAL':
       decisionBanner.classList.add('decision-needs-approval');

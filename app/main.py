@@ -221,6 +221,12 @@ async def chat_endpoint(
         # Final pipeline completion & Guard B
         ctx = run_guard_b(ctx)
 
+    # Ensure BLOCKED_ACTION final decision if any tool call was blocked at Step 8
+    blocked_calls = [tc for tc in ctx.tool_calls if tc.status == "BLOCKED"]
+    if blocked_calls and ctx.decision in ("ALLOWED", "CLEANED"):
+        ctx.decision = "BLOCKED_ACTION"
+        ctx.decision_reason = blocked_calls[0].reason
+
     return ChatResponse(
         request_id=ctx.request_id,
         session_id=ctx.session_id,

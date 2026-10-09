@@ -95,9 +95,19 @@ def run_guard_b(ctx: RequestContext) -> RequestContext:
     res8 = policy.run(ctx)
     ctx.trace.append(res8)
 
+    # If any tool call was blocked at Step 8, update overall decision to BLOCKED_ACTION
+    blocked_calls = [tc for tc in ctx.tool_calls if tc.status == "BLOCKED"]
+    if blocked_calls:
+        ctx.decision = "BLOCKED_ACTION"
+        ctx.decision_reason = blocked_calls[0].reason
+
     # Step 9: Output Firewall
     res9 = output_firewall.run(ctx)
     ctx.trace.append(res9)
+
+    if res9.status == "BLOCKED":
+        ctx.decision = "REPLY_WITHHELD"
+        ctx.decision_reason = res9.reason
 
     guard_b_ms = (time.perf_counter() - guard_b_start) * 1000.0
     ctx.timings["guard_b_ms"] = guard_b_ms
